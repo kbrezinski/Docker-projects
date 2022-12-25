@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 # user input
 st.title('Stock Price App :chart_with_upwards_trend:')
-num_days = st.number_input("Enter Number of Days to Track", min_value=1, max_value=720, value=14, step=7)
+num_days = st.number_input("Enter Number of Days to Track", min_value=1, max_value=360*5, value=14, step=7)
 today_date = datetime.today()
 
 Portfolio1, Portfolio2, Portfolio3 = st.columns(3)

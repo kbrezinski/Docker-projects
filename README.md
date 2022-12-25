@@ -8,7 +8,7 @@ This is a simple streamlit app to show the power of streamlit. The app is deploy
 This repository contains:
 
 1. `Stock Price App` - This app compares stock portfolio performance from some user defined stock ticker symbols. The user can select the company and the time period for which the stock price is to be shown. The app uses the `yfinance` library to fetch the stock price data. Useful for comparisons.
-2. `Manitoba Lottery App` - This app calculations the nete return from the lottery in Manitoba. Various user input parameters are used to calculate the costs of gambling in Manitoba's most popular lotteries.
+2. `Manitoba Lottery App` - This app calculations the net return from the lottery in Manitoba. Various user input parameters are used to calculate the costs of gambling in Manitoba's most popular lotteries.
 
 
 ## Table of Contents

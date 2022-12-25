@@ -21,7 +21,7 @@ with options:
 # second column
 with actual:
     st.subheader('Realistic Loss')
-    weekly_loss = -3.9742 if plays_extra else -2.9753
+    weekly_loss = -3.9928 if plays_extra else -2.9928
 
     if frequency == 'Bi-weekly':
         weekly_loss *= 2 * num_tickets
@@ -50,9 +50,11 @@ with costs:
 
 caption = '''
 Realistic Losses are based on the average cost of a ticket and the average chance of winning 
-over a typical persons lifespan of 85 years. Theoretical losses are shown in red underneath the values.
+over a typical persons lifespan of 85 years. This assumes that you play the lottery from the age of 
+18 to 85, and that you play the lottery bi-weekly and buy the maximum number of tickets allowed my MB lottery
+which is 25 tickets per draw. Theoretical losses are shown in red underneath the values.
 These values are based on the average cost of a ticket and the average chance of winning over billions of
-iterations, unrealistic for us but takes into account winning the jackpot multiple times. 
+iterations, unrealistic for us but takes into account winning the jackpot multiple times and the payout. 
 '''
 st.caption(caption)
 st.markdown("***")
