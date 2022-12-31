@@ -2,8 +2,10 @@
 # Streamlit-App
 
 <a target="new"><img border=0 src="https://img.shields.io/badge/Python-3.9+-blue.svg?style=flat" alt="Python version"></a>
+<a target="new"><img border=0 src="https://img.shields.io/website?down_color=red&down_message=offline&up_color=green&up_message=online&url=https%3A%2F%2Fkenneth-app.herokuapp.com%2F" alt="Website"></a>
 
-This is a simple streamlit app to show the power of streamlit. The app is deployed on heroku and can be accessed [here](). This repository was created to help my parents understand some basic concepts.
+
+This is a simple streamlit app to show the power of streamlit. The app is deployed on heroku and can be accessed [here](https://kenneth-app.herokuapp.com/). This repository was created as a fun project for my parents.
 
 This repository contains:
 
