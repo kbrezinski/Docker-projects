@@ -1,4 +1,6 @@
 
+import mortgage 
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -41,7 +43,11 @@ with left:
     st.plotly_chart(px.bar(df, y=df.columns, title='Monthly Cash Flow', text_auto=True, orientation='v',
                     color_discrete_sequence=px.colors.qualitative.Pastel1, template='plotly_white'))
 
+projected_years = 10
 with right:
+    m=mortgage.Mortgage(interest=mortgage_rate/100, amount=principal_ammount, months=projected_years*12)
+    for index, payment in enumerate(m.monthly_payment_schedule()):
+
     # calculate equity
     projected_years = 10
     monthly_equity = defaultdict(list)
