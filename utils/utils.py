@@ -15,3 +15,4 @@ def compound_interest(principal, rate, years):
     for year in range(1, years + 1):
         home_value.append(principal * (1 + rate) ** year)
     return home_value
+

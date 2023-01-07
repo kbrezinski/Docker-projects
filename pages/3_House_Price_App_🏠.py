@@ -49,15 +49,15 @@ if show_utils:
     with elec:
         monthly_elec = st.number_input('Monthly Hydro Bill ($)', value=AVG_HYDRO_BILL, step=1, format='%i')
     with water:
-        monthly_water = st.number_input('Quarterly Water Bill ($)', value=AVG_QUART_WATER_BILL, step=1, format='%i')
+        quart_water = st.number_input('Quarterly Water Bill ($)', value=AVG_QUART_WATER_BILL, step=1, format='%i')
     with internet:
         monthly_internet = st.number_input('Monthly Internet Bill ($)', value=AVG_INTER_BILL, step=1, format='%i')
-        monthly_data['Water'] = -monthly_water
+        monthly_data['Water'] = -quart_water / 4
         monthly_data['Electricity'] = -monthly_elec
         monthly_data['Internet'] = -monthly_internet
     with other:
         monthly_other = st.number_input('Other Monthly Expenses ($)', value=0, step=1, format='%i')
-        monthly_data['Other'] = -monthly_other
+        if monthly_other != 0: monthly_data['Other'] = -monthly_other
 
 st.markdown("***")
 st.title('Use this section to plot and forecast your monthly cash flow and equity')
@@ -68,13 +68,15 @@ cash_flow, equity = st.tabs(['Monthly Cash Flow', "Equity"])
 # horizontal bar plots
 with cash_flow:
     with st.expander('Additional Info'):
-        st.write('''
+        st.write(f'''
         This plot shows the monthly cash flow for the house. The mortgage payment is split into two parts:
-        1. Mortgage Equity portion: This is the amount that goes towards the principal amount of the mortgage
-        2. Mortgage Interest portion: This is the amount that goes towards the interest of the mortgage
-        Because this is a monthly cash flow plot (money in/out your pocket), the equity portion is combined with the 
-        mortgage payment as a negative value. \\
-        Also, the Maintenance portion includes all housing related expenses related to maintaining the house. It is 
+        1. Mortgage Equity portion: This is the amount that goes towards the principal amount of the mortgage. For you
+            the amount is ${round(monthly_payments[0][0], 2)}.
+        2. Mortgage Interest portion: This is the amount that goes towards the interest of the mortgage. For you
+            the amount is ${round(monthly_payments[0][1], 2)}.
+        **Because this is a monthly cash flow plot (money in/out your pocket), the equity portion is combined with the 
+        mortgage payment as a negative value.** \n
+        Also, the **Maintenance** portion includes all housing related expenses related to maintaining the house. It is 
         assumed homeowners will spend 1-1.5% of the house price on maintenance each year. This is based on StatsCan data.
         Think replacing your roof, furnace, floors, etc.
         ''')
@@ -119,7 +121,7 @@ with equity:
         plot_house = st.checkbox('Include appreciation?', value=False)
         if plot_house: 
             apprec_default = house_apprec_dict[house_type]
-            house_appreciation = st.number_input('Enter the annual appreciation (%)', value=apprec_default, step=0.5, format='%f')
+            house_appreciation = st.number_input('Enter the annual appreciation (%)', value=apprec_default*100, step=0.05, format='%.2f')
 
     # payments dataframe based on equity and interest
     payments_df = pd.DataFrame(
@@ -150,7 +152,7 @@ with equity:
     # concat the dataframes and calculate the net equity
     df = pd.concat([df.cumsum(), payments_df], axis=1)
     df['Net Equity'] = df[[col for col in df.columns if col != "Rent"]].sum(axis=1)
-    df['Date'] = pd.date_range(today, periods=amort_period, freq='Y')
+    df['Date'] = pd.date_range(today.strftime('%Y-%m'), periods=amort_period, freq='Y')
     df.set_index('Date', inplace=True)
     
     # plot line chart
