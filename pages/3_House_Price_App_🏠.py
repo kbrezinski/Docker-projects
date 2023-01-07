@@ -63,7 +63,7 @@ st.markdown("***")
 st.title('Use this section to plot and forecast your monthly cash flow and equity')
 
 # plot tabs
-cash_flow, equity = st.tabs(['Monthly Cash Flow', "Equity"])
+cash_flow, equity = st.tabs(['Monthly Cash Flow', "Equity Projection"])
 
 # horizontal bar plots
 with cash_flow:
@@ -156,7 +156,7 @@ with equity:
     df.set_index('Date', inplace=True)
     
     # plot line chart
-    fig = px.line(df[:years_projected], title='Yearly Equity',
+    fig = px.line(df[:years_projected], title=f'Annual Equity Projection for {years_projected} years',
             color_discrete_sequence=px.colors.qualitative.Plotly, template='plotly_white', width=800, height=500)
     st.plotly_chart(fig)
 
