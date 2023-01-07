@@ -1,66 +1,154 @@
 
-import mortgage 
+from mortgage import Mortgage 
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from collections import defaultdict
 from datetime import datetime
+from utils.constants import *
+from utils.utils import land_transfer_calc, compound_interest
 
 st.title('House Price App :house:')
 st.write('This app will help you to estimate the house price in your area')
 
 today = datetime.today()
-first, second = st.columns(2)
+left_prompts, right_prompts = st.columns(2)
 
-with first:
-    house_price = st.number_input('Enter the house list price (Not sell price)', value=300_000, step=5000, format='%d')
-    principal_ammount = st.number_input('Enter the principal amount (How much you are borrowing)', value=250_000, step=1000, format='%d')
-    mortgage_payment = st.number_input('Enter the mortgage payment', value=2000, step=100, format='%d')
+with left_prompts:
+    house_price = st.number_input('Enter the house selling price', value=300_000, step=5000, format='%d')
+    principal_ammount = st.number_input('Enter the principal amount (How much you are borrowing)', value=250_000, step=1000, format='%i')
+    amort_period = st.number_input('Enter the amortization period (years)', value=25, step=1, format='%d')
     mortgage_rate = st.slider('Enter the mortgage rate (%)', min_value=0.0, max_value=10.0, value=5.50, step=0.05, format='%f')
 
-with second:
+with right_prompts:
     assessment_rate = st.number_input('Enter the house assessment value ($)', value=344_000, step=1_000, format='%d')
     house_type = st.selectbox('Select the house type', ['Bungalow', 'Semi-Detached', 'Townhouse'])
-    annual_insurance = st.number_input('Annual Insurance Cost ($)', value=1098, step=10, format='%i')
+    annual_insurance = st.number_input('Annual House Insurance Cost ($)', value=1098, step=10, format='%i')
     annual_maintenance = st.slider('Enter the annual maintenance (1%; StatsCan)', min_value=0.0, max_value=5.0, value=1.0, step=0.5, format='%f')
-    
+
+# calculate some monthly constants
+m = Mortgage(interest=mortgage_rate/100, amount=principal_ammount, months=amort_period*12)
+monthly_payments = list(m.monthly_payment_schedule())
 monthly_interest = -(principal_ammount * (mortgage_rate / 100) / 12)
 monthly_maintenance = -(house_price * (annual_maintenance / 100) / 12)
 monthly_insurance = -(annual_insurance / 12)
-monthly_tax = -(assessment_rate * 0.028015 / 12)
+monthly_tax = -((assessment_rate * ASSIN_MILL_RATE * 0.45) - 700) / 12
 
-left, right = st.columns([2, 3])
-with left:
-    monthly_data = {
-            'Mortage': -mortgage_payment,
-            'Maintenance': monthly_maintenance,
-            'House Insurance': monthly_insurance,
-            'Property Tax': monthly_tax}
+monthly_data = {
+    'Maintenance': monthly_maintenance,
+    'House Insurance': monthly_insurance,
+    'Property Tax': monthly_tax,
+    'Mortgage': -float(m.monthly_payment()),
+    }
 
+# show utilities
+show_utils = st.checkbox('Include Utilities?', value=True)
+if show_utils:
+    water, elec, internet = st.columns(3)
+    with elec:
+        monthly_elec = st.number_input('Monthly Hydro Bill ($)', value=AVG_HYDRO_BILL, step=1, format='%i')
+    with water:
+        monthly_water = st.number_input('Quarterly Water Bill ($)', value=AVG_QUART_WATER_BILL, step=1, format='%i')
+    with internet:
+        monthly_internet = st.number_input('Monthly Internet Bill ($)', value=AVG_INTER_BILL, step=1, format='%i')
+        monthly_data['Water'] = -monthly_water
+        monthly_data['Electricity'] = -monthly_elec
+        monthly_data['Internet'] = -monthly_internet  
+
+st.markdown("***")
+st.title('Use this section to plot and forecast your monthly cash flow and equity')
+
+# plot tabs
+cash_flow, equity = st.tabs(['Monthly Cash Flow', "Equity"])
+
+# horizontal bar plots
+with cash_flow:
     df = pd.DataFrame(monthly_data, index=['Monthly Cash Flow'])
-    st.plotly_chart(px.bar(df, y=df.columns, title='Monthly Cash Flow', text_auto=True, orientation='v',
-                    color_discrete_sequence=px.colors.qualitative.Pastel1, template='plotly_white'))
+    chart = px.bar(df.T, title='Monthly Cash Flow', text_auto=True, orientation='h', hover_data=['value'],
+                    color_discrete_sequence=px.colors.qualitative.Pastel1, template='plotly_white', width=600, height=400)
+    chart.update_traces(showlegend=False)
+    st.plotly_chart(chart)
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric('Monthly cash flow', f"${round(df.sum(axis=1)[0], 2)}")
+    col2.metric('Equity portion', f"${round(monthly_payments[0][0], 2)}")
+    col3.metric('Interest portion', f"${round(monthly_payments[0][1], 2)}")  
+    st.markdown("***")
+    df
 
-projected_years = 10
-with right:
-    m=mortgage.Mortgage(interest=mortgage_rate/100, amount=principal_ammount, months=projected_years*12)
-    for index, payment in enumerate(m.monthly_payment_schedule()):
+# equity plot
+with equity:
 
-    # calculate equity
-    projected_years = 10
-    monthly_equity = defaultdict(list)
-    # calculate monthly cash flow
-    for i in range(1, projected_years + 1):
-        monthly_equity['Interest'].append(monthly_interest * 12)
-        monthly_equity['Principal'].append(mortgage_payment - monthly_interest)
+    with st.expander('Input Explanation'):
+        st.write('''
+        - **Years to project**: How many years you want to project your equity. The default is 3 years.
+        - **Plot rent**: Include rent in the equity plot. If you select this option, you will be asked to enter the monthly rent.
+        - **Plot closing costs**: Include closing costs in the equity plot. The default is based on a 4% closing cost.
+        - **Plot appreciation**: Include house appreciation in the equity plot. Based on the house type you selected, the appreciation rate will be different.
+        ''')
 
-    # plot a bar chart
-    years = pd.date_range(today, periods=projected_years, freq='Y')
-    df = pd.DataFrame(monthly_equity)
-    df['Date'] = years
-    st.plotly_chart(px.line(df, x='Date', y=df.columns, title='Yearly Equity',
-                    color_discrete_sequence=px.colors.qualitative.Pastel1, template='plotly_white', width=600, height=600))
+    # user inputs
+    years_projected = st.slider('Years to project', min_value=1, max_value=amort_period, value=3, step=1, format='%i')
+    left_inputs, center_inputs, right_inputs = st.columns(3)
+    with left_inputs:
+        plot_rent = st.checkbox('Plot rent?', value=False)
+        if plot_rent: 
+            rent = st.number_input('Enter the monthly rent ($)', value=2000, step=100, format='%i')
+    with center_inputs:
+        plot_closing = st.checkbox('Include closing costs?', value=False)
+        if plot_closing: 
+            closing_rate = st.number_input('Enter the closing costs (%)', value=4.0, step=0.5, format='%f')
+    with right_inputs:
+        plot_house = st.checkbox('Include appreciation?', value=False)
+        if plot_house: 
+            house_appreciation = st.number_input('Enter the annual appreciation (%)', value=3.5, step=0.5, format='%f')
+
+    # payments dataframe based on equity and interest
+    payments_df = pd.DataFrame(
+            monthly_payments, columns=['Equity', 'Interest'])\
+            .cumsum()\
+            .iloc[11::12, :]\
+            .apply(pd.to_numeric, downcast='float')\
+            .reset_index(drop=True)
+
+    payments_df['Interest'] = payments_df['Interest'] * -1
+    if plot_house:
+        payments_df['Equity'] = payments_df['Equity'] + compound_interest(house_price, house_appreciation/100, amort_period) - house_price
+    payments_df
+
+    # annual outflows dataframe based on monthly data 
+    monthly_data = {k:v for k,v in monthly_data.items() if k in ['Property Tax', 'Maintenance', 'House Insurance']}
+    annual_outflows = {'Annual Expenses': sum(monthly_data.values())*12}
+
+    # add the rent if its selected
+    if plot_rent: annual_outflows['Rent'] = -rent * 12
+
+    # combine all the dataframes
+    df = pd.concat([pd.DataFrame([annual_outflows], index=['Annual Outflows'])]*amort_period, ignore_index=True)
+
+    # before the cumsum, add the closing costs if its selected
+    if plot_closing: df['Annual Expenses'][0] += -house_price * (closing_rate / 100)
+
+    # concat the dataframes and calculate the net equity
+    df = pd.concat([df.cumsum(), payments_df], axis=1)
+    df['Net Equity'] = df[[col for col in df.columns if col != "Rent"]].sum(axis=1)
+    df['Date'] = pd.date_range(today, periods=amort_period, freq='Y')
+    df.set_index('Date', inplace=True)
+    
+    # plot line chart
+    fig = px.line(df[:years_projected], title='Yearly Equity',
+            color_discrete_sequence=px.colors.qualitative.Pastel1, template='plotly_white', width=800, height=500)
+    st.plotly_chart(fig)
+
+    # show final metrics
+    col1, col2, col3 = st.columns(3)
+    col1.metric('Net Equity', f"${round(df[:years_projected]['Net Equity'][-1], 2)}")
+    col2.metric('Equity portion', f"${round(df[:years_projected]['Equity'][-1], 2)}")
+    col3.metric('Interest portion', f"${round(df[:years_projected]['Interest'][-1], 2)}")  
+
+    with st.expander('Show amortization table'):
+        st.table(df[:years_projected])
+
 
 

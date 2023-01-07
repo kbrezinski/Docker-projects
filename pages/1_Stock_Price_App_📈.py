@@ -12,8 +12,10 @@ def get_today_date():
     return datetime.today()
 today_date = get_today_date()
 
-# User Input Columns
-#checkboxes, ranges = st.columns(2)
+# Added a checkbox to show year to date performance
+ytd = st.checkbox('Year To Date (Overrides the Slider)', value=False)
+
+if ytd: start_time = datetime(today_date.year, 1, 1, 1, 1)
 
 start_time, end_time = st.slider(
         "Enter Date Range for your Portfolios",
@@ -23,10 +25,6 @@ start_time, end_time = st.slider(
         format="MM/DD/YY")
 # Print the selected dates
 st.write(f"Range Date: {start_time.strftime('%Y-%m-%d')} - {end_time.strftime('%Y-%m-%d')}")
-
-# Added a checkbox to show year to date performance
-ytd = st.checkbox('Year To Date (Overrides the Slider)', value=False)
-if ytd: start_time = datetime(today_date.year, 1, 1, 1, 1)
 
 # Portfolio Columns
 Portfolio1, Portfolio2, Portfolio3 = st.columns(3)
