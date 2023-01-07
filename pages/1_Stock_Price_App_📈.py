@@ -15,16 +15,18 @@ today_date = get_today_date()
 # Added a checkbox to show year to date performance
 ytd = st.checkbox('Year To Date (Overrides the Slider)', value=False)
 
-if ytd: start_time = datetime(today_date.year, 1, 1, 1, 1)
-
-start_time, end_time = st.slider(
-        "Enter Date Range for your Portfolios",
-        min_value=today_date - timedelta(days=365*5),
-        value=(today_date - timedelta(days=365), today_date),
-        step=timedelta(days=30),
-        format="MM/DD/YY")
-# Print the selected dates
-st.write(f"Range Date: {start_time.strftime('%Y-%m-%d')} - {end_time.strftime('%Y-%m-%d')}")
+if ytd:
+    start_time = datetime(today_date.year, 1, 1, 1, 1)
+    end_time = today_date
+else:
+    start_time, end_time = st.slider(
+            "Enter Date Range for your Portfolios",
+            min_value=today_date - timedelta(days=365*5),
+            value=(today_date - timedelta(days=365), today_date),
+            step=timedelta(days=30),
+            format="MM/DD/YY")
+    # Print the selected dates
+    st.write(f"Range Date: {start_time.strftime('%Y-%m-%d')} - {end_time.strftime('%Y-%m-%d')}")
 
 # Portfolio Columns
 Portfolio1, Portfolio2, Portfolio3 = st.columns(3)

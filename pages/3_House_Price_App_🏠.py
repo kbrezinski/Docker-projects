@@ -16,7 +16,7 @@ today = datetime.today()
 left_prompts, right_prompts = st.columns(2)
 
 with left_prompts:
-    house_price = st.number_input('Enter the house selling price', value=300_000, step=5000, format='%d')
+    house_price = st.number_input('Enter the house selling price ($)', value=375_000, step=5000, format='%d')
     principal_ammount = st.number_input('Enter the principal amount (How much you are borrowing)', value=250_000, step=1000, format='%i')
     amort_period = st.number_input('Enter the amortization period (years)', value=25, step=1, format='%d')
     mortgage_rate = st.slider('Enter the mortgage rate (%)', min_value=0.0, max_value=10.0, value=5.50, step=0.05, format='%f')
@@ -43,9 +43,9 @@ monthly_data = {
     }
 
 # show utilities
-show_utils = st.checkbox('Include Utilities?', value=True)
+show_utils = st.checkbox('Include Utilities?', value=False)
 if show_utils:
-    water, elec, internet = st.columns(3)
+    water, elec, internet, other = st.columns(4)
     with elec:
         monthly_elec = st.number_input('Monthly Hydro Bill ($)', value=AVG_HYDRO_BILL, step=1, format='%i')
     with water:
@@ -54,7 +54,10 @@ if show_utils:
         monthly_internet = st.number_input('Monthly Internet Bill ($)', value=AVG_INTER_BILL, step=1, format='%i')
         monthly_data['Water'] = -monthly_water
         monthly_data['Electricity'] = -monthly_elec
-        monthly_data['Internet'] = -monthly_internet  
+        monthly_data['Internet'] = -monthly_internet
+    with other:
+        monthly_other = st.number_input('Other Monthly Expenses ($)', value=0, step=1, format='%i')
+        monthly_data['Other'] = -monthly_other
 
 st.markdown("***")
 st.title('Use this section to plot and forecast your monthly cash flow and equity')
@@ -64,6 +67,17 @@ cash_flow, equity = st.tabs(['Monthly Cash Flow', "Equity"])
 
 # horizontal bar plots
 with cash_flow:
+    with st.expander('Additional Info'):
+        st.write('''
+        This plot shows the monthly cash flow for the house. The mortgage payment is split into two parts:
+        1. Mortgage Equity portion: This is the amount that goes towards the principal amount of the mortgage
+        2. Mortgage Interest portion: This is the amount that goes towards the interest of the mortgage
+        Because this is a monthly cash flow plot (money in/out your pocket), the equity portion is combined with the 
+        mortgage payment as a negative value. \\
+        Also, the Maintenance portion includes all housing related expenses related to maintaining the house. It is 
+        assumed homeowners will spend 1-1.5% of the house price on maintenance each year. This is based on StatsCan data.
+        Think replacing your roof, furnace, floors, etc.
+        ''')
     df = pd.DataFrame(monthly_data, index=['Monthly Cash Flow'])
     chart = px.bar(df.T, title='Monthly Cash Flow', text_auto=True, orientation='h', hover_data=['value'],
                     color_discrete_sequence=px.colors.qualitative.Pastel1, template='plotly_white', width=600, height=400)
@@ -72,10 +86,10 @@ with cash_flow:
     
     col1, col2, col3 = st.columns(3)
     col1.metric('Monthly cash flow', f"${round(df.sum(axis=1)[0], 2)}")
-    col2.metric('Equity portion', f"${round(monthly_payments[0][0], 2)}")
-    col3.metric('Interest portion', f"${round(monthly_payments[0][1], 2)}")  
+    col2.metric('Mortgage Equity portion', f"${round(monthly_payments[0][0], 2)}")
+    col3.metric('Mortgage Interest portion', f"${round(monthly_payments[0][1], 2)}")  
     st.markdown("***")
-    df
+    df # prints the dataframe to screen
 
 # equity plot
 with equity:
@@ -84,8 +98,10 @@ with equity:
         st.write('''
         - **Years to project**: How many years you want to project your equity. The default is 3 years.
         - **Plot rent**: Include rent in the equity plot. If you select this option, you will be asked to enter the monthly rent.
-        - **Plot closing costs**: Include closing costs in the equity plot. The default is based on a 4% closing cost.
-        - **Plot appreciation**: Include house appreciation in the equity plot. Based on the house type you selected, the appreciation rate will be different.
+        - **Plot closing costs**: Include closing costs in the equity plot. Use a value close to 3-4% if you assume just buying your home. 
+                    If you are buying and selling, use a value close to 6-7%.
+        - **Plot appreciation**: Include house appreciation in the equity plot. Based on the house type you selected, the appreciation rate 
+                    will be different. Default rate is based on 3Y, 5Y and 10Y average Manitoba selling prices.
         ''')
 
     # user inputs
@@ -98,11 +114,12 @@ with equity:
     with center_inputs:
         plot_closing = st.checkbox('Include closing costs?', value=False)
         if plot_closing: 
-            closing_rate = st.number_input('Enter the closing costs (%)', value=4.0, step=0.5, format='%f')
+            closing_rate = st.number_input('Enter the closing costs (%)', value=3.0, step=0.5, format='%f')
     with right_inputs:
         plot_house = st.checkbox('Include appreciation?', value=False)
         if plot_house: 
-            house_appreciation = st.number_input('Enter the annual appreciation (%)', value=3.5, step=0.5, format='%f')
+            apprec_default = house_apprec_dict[house_type]
+            house_appreciation = st.number_input('Enter the annual appreciation (%)', value=apprec_default, step=0.5, format='%f')
 
     # payments dataframe based on equity and interest
     payments_df = pd.DataFrame(
@@ -115,11 +132,11 @@ with equity:
     payments_df['Interest'] = payments_df['Interest'] * -1
     if plot_house:
         payments_df['Equity'] = payments_df['Equity'] + compound_interest(house_price, house_appreciation/100, amort_period) - house_price
-    payments_df
+    #payments_df
 
     # annual outflows dataframe based on monthly data 
     monthly_data = {k:v for k,v in monthly_data.items() if k in ['Property Tax', 'Maintenance', 'House Insurance']}
-    annual_outflows = {'Annual Expenses': sum(monthly_data.values())*12}
+    annual_outflows = {'Home Expenses': sum(monthly_data.values()) * 12}
 
     # add the rent if its selected
     if plot_rent: annual_outflows['Rent'] = -rent * 12
@@ -128,7 +145,7 @@ with equity:
     df = pd.concat([pd.DataFrame([annual_outflows], index=['Annual Outflows'])]*amort_period, ignore_index=True)
 
     # before the cumsum, add the closing costs if its selected
-    if plot_closing: df['Annual Expenses'][0] += -house_price * (closing_rate / 100)
+    if plot_closing: df['Home Expenses'][0] += -house_price * (closing_rate / 100)
 
     # concat the dataframes and calculate the net equity
     df = pd.concat([df.cumsum(), payments_df], axis=1)
@@ -138,7 +155,7 @@ with equity:
     
     # plot line chart
     fig = px.line(df[:years_projected], title='Yearly Equity',
-            color_discrete_sequence=px.colors.qualitative.Pastel1, template='plotly_white', width=800, height=500)
+            color_discrete_sequence=px.colors.qualitative.Plotly, template='plotly_white', width=800, height=500)
     st.plotly_chart(fig)
 
     # show final metrics
@@ -149,6 +166,3 @@ with equity:
 
     with st.expander('Show amortization table'):
         st.table(df[:years_projected])
-
-
-
