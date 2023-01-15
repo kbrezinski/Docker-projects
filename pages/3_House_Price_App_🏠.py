@@ -7,7 +7,7 @@ import plotly.express as px
 
 from datetime import datetime
 from utils.constants import *
-from utils.utils import land_transfer_calc, compound_interest
+from utils.utils import compound_interest
 
 st.title('House Price App :house:')
 st.write('This app will help you to estimate the house price in your area')
@@ -17,7 +17,7 @@ left_prompts, right_prompts = st.columns(2)
 
 with left_prompts:
     house_price = st.number_input('Enter the house selling price ($)', value=375_000, step=5000, format='%d')
-    principal_ammount = st.number_input('Enter the principal amount (How much you are borrowing)', value=250_000, step=1000, format='%i')
+    down_payment = st.number_input('Enter your down payment (%)', value=20, step=1, format='%d')
     amort_period = st.number_input('Enter the amortization period (years)', value=25, step=1, format='%d')
     mortgage_rate = st.slider('Enter the mortgage rate (%)', min_value=0.0, max_value=10.0, value=5.50, step=0.05, format='%f')
 
@@ -28,9 +28,9 @@ with right_prompts:
     annual_maintenance = st.slider('Enter the annual maintenance (1%; StatsCan)', min_value=0.0, max_value=5.0, value=1.0, step=0.5, format='%f')
 
 # calculate some monthly constants
-m = Mortgage(interest=mortgage_rate/100, amount=principal_ammount, months=amort_period*12)
+borrowed_ammount = house_price * (1 - down_payment / 100)
+m = Mortgage(interest=mortgage_rate/100, amount=borrowed_ammount, months=amort_period*12)
 monthly_payments = list(m.monthly_payment_schedule())
-monthly_interest = -(principal_ammount * (mortgage_rate / 100) / 12)
 monthly_maintenance = -(house_price * (annual_maintenance / 100) / 12)
 monthly_insurance = -(annual_insurance / 12)
 monthly_tax = -((assessment_rate * ASSIN_MILL_RATE * 0.45) - 700) / 12
@@ -125,16 +125,15 @@ with equity:
 
     # payments dataframe based on equity and interest
     payments_df = pd.DataFrame(
-            monthly_payments, columns=['Equity', 'Interest'])\
-            .cumsum()\
-            .iloc[11::12, :]\
-            .apply(pd.to_numeric, downcast='float')\
-            .reset_index(drop=True)
+                monthly_payments, columns=['Equity', 'Interest'])\
+                .cumsum()\
+                .iloc[11::12, :]\
+                .apply(pd.to_numeric, downcast='float')\
+                .reset_index(drop=True)
 
     payments_df['Interest'] = payments_df['Interest'] * -1
     if plot_house:
         payments_df['Equity'] = payments_df['Equity'] + compound_interest(house_price, house_appreciation/100, amort_period) - house_price
-    #payments_df
 
     # annual outflows dataframe based on monthly data 
     monthly_data = {k:v for k,v in monthly_data.items() if k in ['Property Tax', 'Maintenance', 'House Insurance']}
@@ -163,7 +162,7 @@ with equity:
     # show final metrics
     col1, col2, col3 = st.columns(3)
     col1.metric('Net Equity', f"${round(df[:years_projected]['Net Equity'][-1], 2)}")
-    col2.metric('Equity portion', f"${round(df[:years_projected]['Equity'][-1], 2)}")
+    col2.metric('Equity portion (excl. down-payment)', f"${round(df[:years_projected]['Equity'][-1], 2)}")
     col3.metric('Interest portion', f"${round(df[:years_projected]['Interest'][-1], 2)}")  
 
     with st.expander('Show amortization table'):
